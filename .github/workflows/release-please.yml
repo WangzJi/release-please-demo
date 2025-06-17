@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 0
 
       - name: Release Please Action
-        uses: google-github-actions/release-please-action@v4
+        uses: googleapis/release-please-action@v4
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
