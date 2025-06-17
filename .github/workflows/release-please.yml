@@ -18,15 +18,17 @@ jobs:
           release-type: simple
           package-name: release-please-demo
           draft: true
+          pull-request-title-pattern: "chore${scope}: release${component} ${version}"
+          conventional-commits: false
           changelog-types: '[{"type":"feat","section":"🚀 Features","hidden":false},{"type":"fix","section":"🐛 Bug Fixes","hidden":false},{"type":"perf","section":"⚡ Performance Improvements","hidden":false},{"type":"revert","section":"⏪ Reverts","hidden":false},{"type":"docs","section":"📝 Documentation","hidden":false},{"type":"style","section":"💄 Styles","hidden":false},{"type":"refactor","section":"♻️ Code Refactoring","hidden":false},{"type":"test","section":"✅ Tests","hidden":false},{"type":"build","section":"🔧 Build System","hidden":false},{"type":"ci","section":"👷 CI","hidden":false},{"type":"chore","section":"🔨 Miscellaneous","hidden":false}]'
 
       # Output when draft release is created
       - name: Draft Release Created
         if: ${{ steps.release.outputs.release_created }}
         run: |
-          echo "🎉 Draft Release Created!"
+          echo "🎉 Draft Release Created from PR titles!"
           echo "📦 Tag: ${{ steps.release.outputs.tag_name }}"
-          echo "📝 CHANGELOG.md has been updated automatically"
+          echo "📝 CHANGELOG.md generated from merged PR titles"
           echo "🔗 Draft Release URL: https://github.com/${{ github.repository }}/releases"
           echo "✅ Review and publish the draft release when ready"
 
@@ -34,8 +36,8 @@ jobs:
       - name: No Release Changes
         if: ${{ !steps.release.outputs.release_created }}
         run: |
-          echo "ℹ️ No releasable changes found since last release"
-          echo "📝 Commits must use conventional format for release generation:"
-          echo "   feat: new features (minor bump)"
-          echo "   fix: bug fixes (patch bump)"
-          echo "   feat!: breaking changes (major bump)"
+          echo "ℹ️ No releasable PR titles found since last release"
+          echo "📝 PR titles must use conventional format:"
+          echo "   feat: add new feature"
+          echo "   fix: resolve bug issue"
+          echo "   feat!: breaking change"
