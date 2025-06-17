@@ -17,32 +17,22 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      # Output release information for debugging
-      - name: Show Release Outputs
+      # Output when draft release is created
+      - name: Draft Release Created
         if: ${{ steps.release.outputs.release_created }}
         run: |
-          echo "🎉 Draft Release created!"
+          echo "🎉 Draft Release Created!"
           echo "📦 Tag: ${{ steps.release.outputs.tag_name }}"
-          echo "🔗 Upload URL: ${{ steps.release.outputs.upload_url }}"
-          echo "📋 Release ID: ${{ steps.release.outputs.id }}"
-          echo "📝 Body: ${{ steps.release.outputs.body }}"
-          echo "✅ Check the Releases page to review and publish the draft"
+          echo "📝 CHANGELOG.md has been updated automatically"
+          echo "🔗 Draft Release URL: https://github.com/${{ github.repository }}/releases"
+          echo "✅ Review and publish the draft release when ready"
 
-      # Show PR information when release PR is created
-      - name: Show PR Information
-        if: ${{ steps.release.outputs.pr }}
+      # Output when no releasable changes found
+      - name: No Release Changes
+        if: ${{ !steps.release.outputs.release_created }}
         run: |
-          echo "📝 Release PR created!"
-          echo "🔗 PR URL: ${{ steps.release.outputs.pr }}"
-          echo "📋 Review the changelog and version bump in the PR"
-          echo "✅ Merge the PR to create a draft release"
-          
-      # Show when no action is taken
-      - name: Show No Action
-        if: ${{ !steps.release.outputs.release_created && !steps.release.outputs.pr }}
-        run: |
-          echo "ℹ️ No releasable changes found"
-          echo "📝 Make commits with conventional commit format to trigger releases"
-          echo "   feat: (minor version bump)"
-          echo "   fix: (patch version bump)" 
-          echo "   feat!: or fix!: (major version bump)"
+          echo "ℹ️ No releasable changes found since last release"
+          echo "📝 Commits must use conventional format for release generation:"
+          echo "   feat: new features (minor bump)"
+          echo "   fix: bug fixes (patch bump)"
+          echo "   feat!: breaking changes (major bump)"
