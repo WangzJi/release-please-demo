@@ -1,108 +1,120 @@
-# Release Please Demo (Java)
+# Release Please Demo - GitHub Draft Release Generator
 
-A demonstration project showing how to use [release-please](https://github.com/googleapis/release-please) for automated release management with Java and Maven.
+A demonstration project showing how to use [release-please](https://github.com/googleapis/release-please) to automatically generate **GitHub Draft Releases** based on conventional commits.
 
-## What is Release Please?
+## What is This Demo?
 
-Release Please automates CHANGELOG generation, the creation of GitHub releases, and version bumps for your Java projects using Maven.
+This project demonstrates how to use release-please to automatically:
+- ✅ Generate GitHub **Draft Releases**
+- ✅ Create detailed changelogs from conventional commits
+- ✅ Manage version bumping automatically
+- ✅ Support any project type (language-agnostic)
 
-## How it works
+## Key Features
 
-1. **Conventional Commits**: Use conventional commit messages (feat:, fix:, chore:, etc.)
-2. **Automated PRs**: Release Please creates PRs with version bumps in `pom.xml` and changelog updates
-3. **Automated Releases**: When you merge the PR, a new release is automatically created
+- **Draft Releases**: Automatically creates draft releases that you can review before publishing
+- **Language Agnostic**: Works with any project type (Java, Node.js, Python, Go, etc.)
+- **Conventional Commits**: Uses commit message format to determine version bumps
+- **Automated Changelog**: Generates beautiful changelogs from your commits
 
-## Prerequisites
+## How it Works
 
-- Java 11 or higher
-- Maven 3.6 or higher
+1. **Make commits** using conventional commit format
+2. **Push to main branch** 
+3. **Release-please analyzes** your commits
+4. **Draft release created** automatically on GitHub
+5. **Review and publish** when ready
 
-## Demo Usage
+## Conventional Commit Format
 
-### Build and run the application
-```bash
-# Compile the project
-mvn clean compile
-
-# Run tests
-mvn test
-
-# Run the application
-mvn exec:java
-
-# Package into JAR
-mvn clean package
-
-# Run the JAR file
-java -jar target/release-please-demo-1.0.0.jar
-```
-
-### Make changes and commit
-To trigger a release, make commits using conventional commit format:
+Use these commit prefixes to control version bumping:
 
 ```bash
-# Feature commit (minor version bump)
-git commit -m "feat: add multiplication function to calculator"
+# Feature - Minor version bump (1.0.0 → 1.1.0)
+git commit -m "feat: add awesome new feature"
 
-# Bug fix commit (patch version bump)  
-git commit -m "fix: handle division by zero properly"
+# Bug Fix - Patch version bump (1.0.0 → 1.0.1)
+git commit -m "fix: resolve critical issue"
 
-# Breaking change (major version bump)
-git commit -m "feat!: change Calculator API to use double instead of int"
+# Breaking Change - Major version bump (1.0.0 → 2.0.0)
+git commit -m "feat!: breaking API changes"
+git commit -m "fix!: breaking bug fix"
 
-# Chore commit (no version bump)
-git commit -m "chore: update Maven dependencies"
+# Other types (no version bump)
+git commit -m "docs: update documentation"
+git commit -m "style: format code"
+git commit -m "refactor: improve code structure"
+git commit -m "test: add missing tests"
+git commit -m "chore: update dependencies"
 ```
 
-### The Release Process
+## Supported Commit Types
 
-1. Push your commits to the `main` branch
-2. Release Please will analyze your commits
-3. If there are releasable changes, it creates a "Release PR" that updates:
-   - Version in `pom.xml`
-   - `CHANGELOG.md` with new changes
-4. Review and merge the Release PR
-5. A new GitHub release is automatically created
-6. Maven artifacts are built and tested
+| Type | Description | Version Bump | Changelog Section |
+|------|-------------|--------------|-------------------|
+| `feat` | New features | Minor | Features |
+| `fix` | Bug fixes | Patch | Bug Fixes |
+| `feat!`/`fix!` | Breaking changes | Major | Features/Bug Fixes |
+| `docs` | Documentation | None | Documentation |
+| `style` | Code style | None | Styles |
+| `refactor` | Code refactoring | None | Code Refactoring |
+| `test` | Tests | None | Tests |
+| `chore` | Maintenance | None | Miscellaneous |
+
+## Workflow Process
+
+1. **Commit & Push**: Make commits using conventional format and push to `main`
+2. **Auto-Analysis**: GitHub Actions runs release-please
+3. **Draft Creation**: If releasable commits found, creates draft release
+4. **Manual Review**: Review the draft release on GitHub
+5. **Publish**: Manually publish when ready
 
 ## Project Structure
 
 ```
 release-please-demo/
-├── src/
-│   ├── main/java/com/wangzji/releaseplease/
-│   │   ├── Application.java         # Main application class
-│   │   └── Calculator.java          # Calculator utility class
-│   └── test/java/com/wangzji/releaseplease/
-│       └── CalculatorTest.java      # JUnit tests
-├── pom.xml                          # Maven configuration
 ├── .github/workflows/
-│   └── release-please.yml           # GitHub Actions workflow
-└── README.md
+│   └── release-please.yml    # GitHub Actions workflow
+├── src/                      # Your project source (any language)
+├── version.txt              # Current version file
+├── README.md                # This documentation
+└── .gitignore              # Git ignore rules
 ```
 
-## Commit Types
+## Benefits of Draft Releases
 
-- `feat:` - New features (minor version bump)
-- `fix:` - Bug fixes (patch version bump)
-- `feat!:` or `fix!:` - Breaking changes (major version bump)
-- `chore:` - Maintenance tasks (no version bump)
-- `docs:` - Documentation changes (no version bump)
-- `style:` - Code style changes (no version bump)
-- `refactor:` - Code refactoring (no version bump)
-- `test:` - Adding or modifying tests (no version bump)
+- ✅ **Review before publishing** - Check changelog and version
+- ✅ **Add release notes** - Enhance with additional information
+- ✅ **Attach files** - Add binaries, packages, or artifacts
+- ✅ **Control timing** - Publish when ready, not automatically
+- ✅ **Multiple environments** - Test in staging before production
 
-## Features
+## Demo Usage
 
-- **Calculator**: Basic arithmetic operations with proper error handling
-- **Unit Tests**: Comprehensive JUnit 5 test suite
-- **Maven Build**: Standard Maven project structure
-- **GitHub Actions**: Automated CI/CD with release-please
-- **Version Management**: Automatic version bumping in `pom.xml`
+Try making some commits and see the magic happen:
+
+```bash
+# Make a feature change
+echo "new feature" >> feature.txt
+git add feature.txt
+git commit -m "feat: add new feature file"
+git push origin main
+
+# Check GitHub Actions and Releases tab
+# A draft release will be created automatically!
+```
+
+## Configuration
+
+The workflow is configured in `.github/workflows/release-please.yml` with:
+- **Release Type**: `simple` (language-agnostic)
+- **Draft Mode**: `true` (creates drafts, not published releases)
+- **Branch**: `main` (monitors main branch)
+- **Changelog**: Comprehensive commit type support
 
 ## Current Version
 
-The current version is automatically managed by release-please and can be found in `pom.xml`.
+See `version.txt` or check the latest GitHub release tag.
 
 ## License
 
