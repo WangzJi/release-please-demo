@@ -39,6 +39,7 @@ on:
 jobs:
   # PR 标题验证
   pr-validation:
+
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
@@ -106,8 +107,13 @@ jobs:
           echo "🔄 Updating draft release: $DRAFT_TAG"
           
           # 生成从最新 tag 以来的 changelog
-          CHANGELOG="## Changes for $DRAFT_VERSION\n\n"
-          CHANGELOG="${CHANGELOG}*Based on $LATEST_TAG*\n\n"
+          CHANGELOG_FILE="/tmp/changelog.md"
+          
+          # 创建 changelog 文件
+          echo "## Changes for $DRAFT_VERSION" > $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          echo "*Based on $LATEST_TAG*" >> $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
           
           # 获取从最新 tag 到 HEAD 的提交
           if [ "$LATEST_TAG" != "v1.0.0" ]; then
@@ -117,12 +123,13 @@ jobs:
           fi
           
           if [ ! -z "$COMMITS" ]; then
-            CHANGELOG="${CHANGELOG}### 📝 Changes:\n"
+            echo "### 📝 Changes:" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
             while IFS= read -r commit; do
-              CHANGELOG="${CHANGELOG}- ${commit}\n"
+              echo "- $commit" >> $CHANGELOG_FILE
             done <<< "$COMMITS"
           else
-            CHANGELOG="${CHANGELOG}No new changes since last release.\n"
+            echo "No new changes since last release." >> $CHANGELOG_FILE
           fi
           
           # 删除现有的草稿（如果存在）
@@ -138,7 +145,7 @@ jobs:
           gh api repos/${{ github.repository }}/releases \
             -f tag_name="$DRAFT_TAG" \
             -f name="$DRAFT_VERSION (Draft)" \
-            -f body="$CHANGELOG" \
+            -F body="$(cat $CHANGELOG_FILE)" \
             -F draft=true \
             -f target_commitish="main"
           
@@ -201,29 +208,44 @@ jobs:
           
           echo "📋 Generating changelog from $LATEST_TAG to HEAD"
           
-          # 生成 changelog
-          CHANGELOG="## $NEW_VERSION ($(date +%Y-%m-%d))\n\n"
+          # 创建 changelog 文件
+          CHANGELOG_FILE="/tmp/changelog.md"
+          echo "## $NEW_VERSION ($(date +%Y-%m-%d))" > $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
           
           # 分类收集提交
-          FEATURES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^feat" | sed 's/^/- /')
-          FIXES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^fix" | sed 's/^/- /')
-          OTHERS=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^docs\|^style\|^refactor\|^test\|^chore\|^perf\|^ci\|^build" | sed 's/^/- /')
+          FEATURES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^feat")
+          FIXES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^fix")
+          OTHERS=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^docs\|^style\|^refactor\|^test\|^chore\|^perf\|^ci\|^build")
           
           if [ ! -z "$FEATURES" ]; then
-            CHANGELOG="${CHANGELOG}### 🚀 Features\n${FEATURES}\n\n"
+            echo "### 🚀 Features" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+            while IFS= read -r commit; do
+              echo "- $commit" >> $CHANGELOG_FILE
+            done <<< "$FEATURES"
+            echo "" >> $CHANGELOG_FILE
           fi
           
           if [ ! -z "$FIXES" ]; then
-            CHANGELOG="${CHANGELOG}### 🐛 Bug Fixes\n${FIXES}\n\n"
+            echo "### 🐛 Bug Fixes" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+            while IFS= read -r commit; do
+              echo "- $commit" >> $CHANGELOG_FILE
+            done <<< "$FIXES"
+            echo "" >> $CHANGELOG_FILE
           fi
           
           if [ ! -z "$OTHERS" ]; then
-            CHANGELOG="${CHANGELOG}### 🔧 Other Changes\n${OTHERS}\n\n"
+            echo "### 🔧 Other Changes" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+            while IFS= read -r commit; do
+              echo "- $commit" >> $CHANGELOG_FILE
+            done <<< "$OTHERS"
+            echo "" >> $CHANGELOG_FILE
           fi
           
-          # 保存到文件（GitHub API 有长度限制）
-          echo -e "$CHANGELOG" > /tmp/changelog.md
-          echo "changelog_file=/tmp/changelog.md" >> $GITHUB_OUTPUT
+          echo "changelog_file=$CHANGELOG_FILE" >> $GITHUB_OUTPUT
 
       - name: Create Release
         env:
@@ -235,19 +257,19 @@ jobs:
           
           echo "🚀 Creating release: $NEW_VERSION on branch: $BRANCH"
           
-                     # 删除当前草稿版本（如果存在）
-           # 计算当前应该存在的草稿版本
-           LATEST_TAG="${{ steps.version_calc.outputs.latest_tag }}"
-           VERSION=${LATEST_TAG#v}
-           IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
-           CURRENT_DRAFT_MINOR=$((VERSION_PARTS[1] + 1))
-           CURRENT_DRAFT_TAG="v${VERSION_PARTS[0]}.${CURRENT_DRAFT_MINOR}.0-draft"
-           
-           if gh api repos/${{ github.repository }}/releases/tags/$CURRENT_DRAFT_TAG >/dev/null 2>&1; then
-             echo "🗑️ Cleaning up current draft release: $CURRENT_DRAFT_TAG"
-             gh api --method DELETE repos/${{ github.repository }}/releases/tags/$CURRENT_DRAFT_TAG || true
-             git push --delete origin $CURRENT_DRAFT_TAG || true
-           fi
+          # 删除当前草稿版本（如果存在）
+          # 计算当前应该存在的草稿版本
+          LATEST_TAG="${{ steps.version_calc.outputs.latest_tag }}"
+          VERSION=${LATEST_TAG#v}
+          IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
+          CURRENT_DRAFT_MINOR=$((VERSION_PARTS[1] + 1))
+          CURRENT_DRAFT_TAG="v${VERSION_PARTS[0]}.${CURRENT_DRAFT_MINOR}.0-draft"
+          
+          if gh api repos/${{ github.repository }}/releases/tags/$CURRENT_DRAFT_TAG >/dev/null 2>&1; then
+            echo "🗑️ Cleaning up current draft release: $CURRENT_DRAFT_TAG"
+            gh api --method DELETE repos/${{ github.repository }}/releases/tags/$CURRENT_DRAFT_TAG || true
+            git push --delete origin $CURRENT_DRAFT_TAG || true
+          fi
           
           # 创建 tag
           git tag $NEW_VERSION HEAD
