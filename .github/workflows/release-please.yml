@@ -4,10 +4,16 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, closed]
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # Only run release-please on merge to main (not on PR events)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Release Please Action
         uses: google-github-actions/release-please-action@v3
@@ -41,3 +47,38 @@ jobs:
           echo "   feat: add new feature"
           echo "   fix: resolve bug issue"
           echo "   feat!: breaking change"
+
+  pr-validation:
+    runs-on: ubuntu-latest
+    # Only run on PR events
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Validate PR Title
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "🔍 Validating PR title: $PR_TITLE"
+          
+          # Check if PR title follows conventional commit format
+          if echo "$PR_TITLE" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?!?:\s.+"; then
+            echo "✅ PR title follows conventional commit format"
+            echo "📝 This will be included in the changelog when merged"
+          else
+            echo "❌ PR title does not follow conventional commit format"
+            echo "📋 Expected format: type: description"
+            echo "📋 Examples:"
+            echo "   feat: add new feature"
+            echo "   fix: resolve bug issue"
+            echo "   docs: update documentation"
+            exit 1
+          fi
+
+      - name: PR Event Info
+        run: |
+          echo "📝 PR Event: ${{ github.event.action }}"
+          echo "🔗 PR Number: ${{ github.event.pull_request.number }}"
+          echo "👤 Author: ${{ github.event.pull_request.user.login }}"
+          echo "🎯 Target Branch: ${{ github.event.pull_request.base.ref }}"
+          echo "🌿 Source Branch: ${{ github.event.pull_request.head.ref }}"
