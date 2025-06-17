@@ -37,6 +37,9 @@ permissions:
 jobs:
   validate-pr-title:
     if: github.event_name == 'push'
+  # PR 标题验证
+  pr-validation:
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
