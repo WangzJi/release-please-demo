@@ -1,12 +1,12 @@
 package com.wangzji.releaseplease;
 
 /**
- * Simple calculator utility class
+ * Simple calculator for demonstration
  */
 public class Calculator {
     
     /**
-     * Add two numbers
+     * Add two integers
      * @param a first number
      * @param b second number
      * @return sum of a and b
@@ -16,7 +16,7 @@ public class Calculator {
     }
     
     /**
-     * Subtract two numbers
+     * Subtract two integers
      * @param a first number
      * @param b second number
      * @return difference of a and b
@@ -26,7 +26,21 @@ public class Calculator {
     }
     
     /**
-     * Multiply two numbers
+     * Calculate modulo operation
+     * @param a dividend
+     * @param b divisor
+     * @return remainder of a divided by b
+     * @throws IllegalArgumentException if divisor is zero
+     */
+    public int modulo(int a, int b) {
+        if (b == 0) {
+            throw new IllegalArgumentException("Divisor cannot be zero");
+        }
+        return a % b;
+    }
+    
+    /**
+     * Multiply two integers
      * @param a first number
      * @param b second number
      * @return product of a and b
@@ -71,19 +85,5 @@ public class Calculator {
             result *= base;
         }
         return result;
-    }
-    
-    /**
-     * Calculate modulo (remainder) of two numbers
-     * @param a dividend
-     * @param b divisor
-     * @return remainder of a divided by b
-     * @throws IllegalArgumentException if divisor is zero
-     */
-    public int modulo(int a, int b) {
-        if (b == 0) {
-            throw new IllegalArgumentException("Modulo by zero is not allowed");
-        }
-        return a % b;
     }
 } 
