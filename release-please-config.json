@@ -1,28 +1,88 @@
 {
+  "release-type": "maven",
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
+  "versioning-strategy": "default",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "draft": false,
+  "prerelease": false,
+  "separate-pull-requests": false,
+  "group-pull-request-title-pattern": "chore: release ${version}",
+  "release-as": "patch",
+  "skip-github-release": false,
+  "skip-github-pull-request": true,
+  "tag-separator": "-",
+  "extra-files": [
+    {
+      "type": "generic",
+      "path": "version.txt",
+      "glob": false
+    }
+  ],
+  "changelog-sections": [
+    {
+      "type": "feat",
+      "section": "🚀 Features",
+      "hidden": false
+    },
+    {
+      "type": "fix", 
+      "section": "🐛 Bug Fixes",
+      "hidden": false
+    },
+    {
+      "type": "perf",
+      "section": "⚡ Performance Improvements", 
+      "hidden": false
+    },
+    {
+      "type": "refactor",
+      "section": "🔧 Code Refactoring",
+      "hidden": false
+    },
+    {
+      "type": "docs",
+      "section": "📚 Documentation",
+      "hidden": false
+    },
+    {
+      "type": "test",
+      "section": "🧪 Tests",
+      "hidden": false
+    },
+    {
+      "type": "build",
+      "section": "🏗️ Build System",
+      "hidden": false
+    },
+    {
+      "type": "ci",
+      "section": "🔄 Continuous Integration",
+      "hidden": false
+    },
+    {
+      "type": "chore",
+      "section": "🧹 Chores",
+      "hidden": false
+    },
+    {
+      "type": "style",
+      "section": "💄 Styles",
+      "hidden": false
+    },
+    {
+      "type": "revert",
+      "section": "⏪ Reverts",
+      "hidden": false
+    }
+  ],
   "packages": {
     ".": {
-      "release-type": "simple",
       "package-name": "release-please-demo",
-      "draft": true,
-      "include-v-in-tag": true,
-      "pull-request-title-pattern": "chore${scope}: release${component} ${version}",
-      "separate-pull-requests": false,
-      "skip-github-release": false,
-      "skip-github-pull-request": true,
-      "changelog-sections": [
-        {"type": "feat", "section": "🚀 Features", "hidden": false},
-        {"type": "fix", "section": "🐛 Bug Fixes", "hidden": false},
-        {"type": "perf", "section": "⚡ Performance Improvements", "hidden": false},
-        {"type": "revert", "section": "⏪ Reverts", "hidden": false},
-        {"type": "docs", "section": "📝 Documentation", "hidden": false},
-        {"type": "style", "section": "💄 Styles", "hidden": false},
-        {"type": "refactor", "section": "♻️ Code Refactoring", "hidden": false},
-        {"type": "test", "section": "✅ Tests", "hidden": false},
-        {"type": "build", "section": "🔧 Build System", "hidden": false},
-        {"type": "ci", "section": "👷 CI", "hidden": false},
-        {"type": "chore", "section": "🔨 Miscellaneous", "hidden": false}
-      ]
+      "component": "release-please-demo"
     }
   },
+  "branches": ["main", "2.4", "2.3"],
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
 } 
