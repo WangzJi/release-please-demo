@@ -9,7 +9,6 @@
   "prerelease": false,
   "separate-pull-requests": false,
   "group-pull-request-title-pattern": "chore: release ${version}",
-  "release-as": "patch",
   "skip-github-release": false,
   "skip-github-pull-request": true,
   "tag-separator": "-",
