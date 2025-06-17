@@ -234,6 +234,7 @@ jobs:
               echo "We'd like to thank the following contributors for this release:" >> $OUTPUT_FILE
               echo "" >> $OUTPUT_FILE
               
+
               # 使用紧凑的头像展示格式（类似release-drafter）
               while IFS= read -r contributor; do
                 AUTHOR_NAME=$(echo "$contributor" | sed 's/ <.*//')
@@ -258,6 +259,7 @@ jobs:
                       GITHUB_USER=$(echo "$AUTHOR_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ //g')
                       ;;
                   esac
+
                 fi
                 
                 # 生成紧凑的头像链接
@@ -491,6 +493,7 @@ jobs:
                     GITHUB_USER=$(echo "$AUTHOR_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ //g')
                     ;;
                 esac
+
               fi
               
               # 生成紧凑的头像链接
