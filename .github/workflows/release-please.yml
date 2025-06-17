@@ -18,30 +18,37 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout code
+      # Step 1: Checkout code（推荐用最新版本 v3）
       - name: Checkout code
-        uses: actions/checkout@v2
-
-      # Step 2: Set up Node.js environment (updated version)
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/checkout@v3
         with:
-          node-version: '16'
+          fetch-depth: 1
 
-      # Step 3: Install release-please tool
+      # Step 2: Set up Node.js environment（建议用 LTS 版本）
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 'lts/*'
+
+      # Step 3: Install dependencies & run tests（可选，如果有测试）
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+
+      # Step 4: Install release-please（锁定最新稳定版本，可选加版本号）
       - name: Install release-please
-        run: npm install -g release-please
+        run: npm install -g release-please@latest
 
-      # Step 4: Create release PR with changelog
+      # Step 5: Create release PR with changelog（增加错误处理和日志）
       - name: Create Release PR
         run: |
+          set -e
+          echo "Running release-please on branch $GITHUB_REF_NAME"
           release-please release-pr --token ${{ secrets.GITHUB_TOKEN }} --branch $GITHUB_REF_NAME --repo-url https://github.com/${{ github.repository }}
-          
-      # Step 5: Commit and push the updated CHANGELOG.md (if necessary)
+
+      # Step 6: Commit and push the updated CHANGELOG.md（只在有变更时提交）
       - name: Commit and push changelog to repository
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add CHANGELOG.md
-          git commit -m "chore: update changelog"
-          git push
+          set -e
+          git
