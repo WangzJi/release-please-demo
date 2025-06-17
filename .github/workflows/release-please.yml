@@ -234,44 +234,55 @@ jobs:
               echo "We'd like to thank the following contributors for this release:" >> $OUTPUT_FILE
               echo "" >> $OUTPUT_FILE
               
-              # 收集所有GitHub用户
-              GITHUB_USERS=""
+              # 使用HTML表格格式显示Contributors（带头像）
+              echo "<table>" >> $OUTPUT_FILE
+              echo "<tr>" >> $OUTPUT_FILE
+              
               while IFS= read -r contributor; do
                 AUTHOR_NAME=$(echo "$contributor" | sed 's/ <.*//')
                 AUTHOR_EMAIL=$(echo "$contributor" | sed 's/.*<\(.*\)>/\1/')
-                # 提取GitHub用户名
+                
+                # 尝试多种方式获取GitHub用户名
+                GITHUB_USER=""
                 if [[ "$AUTHOR_EMAIL" == *"@users.noreply.github.com" ]]; then
+                  # GitHub noreply邮箱格式
                   GITHUB_USER=$(echo "$AUTHOR_EMAIL" | sed 's/.*+\(.*\)@users.noreply.github.com/\1/')
-                  GITHUB_USERS="$GITHUB_USERS $GITHUB_USER"
                 elif [[ "$AUTHOR_EMAIL" == *"github.com" ]]; then
+                  # 其他GitHub邮箱格式
                   GITHUB_USER=$(echo "$AUTHOR_EMAIL" | sed 's/@.*//')
-                  GITHUB_USERS="$GITHUB_USERS $GITHUB_USER"
+                else
+                  # 尝试通过git config获取GitHub用户名，或使用预定义映射
+                  case "$AUTHOR_EMAIL" in
+                    "iwongjian666@gmail.com")
+                      GITHUB_USER="WangzJi"
+                      ;;
+                    *)
+                      # 使用作者姓名作为GitHub用户名的猜测
+                      GITHUB_USER=$(echo "$AUTHOR_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ //g')
+                      ;;
+                  esac
+                fi
+                
+                # 生成Contributors条目
+                if [ ! -z "$GITHUB_USER" ]; then
+                  echo "  <td align=\"center\">" >> $OUTPUT_FILE
+                  echo "    <a href=\"https://github.com/$GITHUB_USER\">" >> $OUTPUT_FILE
+                  echo "      <img src=\"https://github.com/$GITHUB_USER.png?size=60\" width=\"60\" height=\"60\" alt=\"@$GITHUB_USER\" style=\"border-radius: 50%;\"/>" >> $OUTPUT_FILE
+                  echo "      <br/>" >> $OUTPUT_FILE
+                  echo "      <sub><b>@$GITHUB_USER</b></sub>" >> $OUTPUT_FILE
+                  echo "    </a>" >> $OUTPUT_FILE
+                  echo "  </td>" >> $OUTPUT_FILE
+                else
+                  echo "  <td align=\"center\">" >> $OUTPUT_FILE
+                  echo "    <img src=\"https://github.com/identicons/$(echo -n "$AUTHOR_EMAIL" | md5sum | cut -d' ' -f1).png\" width=\"60\" height=\"60\" alt=\"$AUTHOR_NAME\" style=\"border-radius: 50%;\"/>" >> $OUTPUT_FILE
+                  echo "    <br/>" >> $OUTPUT_FILE
+                  echo "    <sub><b>$AUTHOR_NAME</b></sub>" >> $OUTPUT_FILE
+                  echo "  </td>" >> $OUTPUT_FILE
                 fi
               done <<< "$CONTRIBUTORS"
               
-              # 生成带头像的Contributors列表
-              if [ ! -z "$GITHUB_USERS" ]; then
-                # 使用HTML格式显示头像
-                echo "<table>" >> $OUTPUT_FILE
-                echo "<tr>" >> $OUTPUT_FILE
-                for user in $GITHUB_USERS; do
-                  echo "  <td align=\"center\">" >> $OUTPUT_FILE
-                  echo "    <a href=\"https://github.com/$user\">" >> $OUTPUT_FILE
-                  echo "      <img src=\"https://github.com/$user.png?size=50\" width=\"50\" height=\"50\" alt=\"@$user\"/>" >> $OUTPUT_FILE
-                  echo "      <br/>" >> $OUTPUT_FILE
-                  echo "      <sub><b>@$user</b></sub>" >> $OUTPUT_FILE
-                  echo "    </a>" >> $OUTPUT_FILE
-                  echo "  </td>" >> $OUTPUT_FILE
-                done
-                echo "</tr>" >> $OUTPUT_FILE
-                echo "</table>" >> $OUTPUT_FILE
-              else
-                # 回退到文本格式
-                while IFS= read -r contributor; do
-                  AUTHOR_NAME=$(echo "$contributor" | sed 's/ <.*//')
-                  echo "* $AUTHOR_NAME" >> $OUTPUT_FILE
-                done <<< "$CONTRIBUTORS"
-              fi
+              echo "</tr>" >> $OUTPUT_FILE
+              echo "</table>" >> $OUTPUT_FILE
             else
               echo "* github-actions[bot]" >> $OUTPUT_FILE
             fi
@@ -472,44 +483,55 @@ jobs:
             echo "We'd like to thank the following contributors for this release:" >> "$CHANGELOG_FILE"
             echo "" >> "$CHANGELOG_FILE"
             
-            # 收集所有GitHub用户
-            GITHUB_USERS=""
+            # 使用HTML表格格式显示Contributors（带头像）
+            echo "<table>" >> "$CHANGELOG_FILE"
+            echo "<tr>" >> "$CHANGELOG_FILE"
+            
             while IFS= read -r contributor; do
               AUTHOR_NAME=$(echo "$contributor" | sed 's/ <.*//')
               AUTHOR_EMAIL=$(echo "$contributor" | sed 's/.*<\(.*\)>/\1/')
-              # 提取GitHub用户名
+              
+              # 尝试多种方式获取GitHub用户名
+              GITHUB_USER=""
               if [[ "$AUTHOR_EMAIL" == *"@users.noreply.github.com" ]]; then
+                # GitHub noreply邮箱格式
                 GITHUB_USER=$(echo "$AUTHOR_EMAIL" | sed 's/.*+\(.*\)@users.noreply.github.com/\1/')
-                GITHUB_USERS="$GITHUB_USERS $GITHUB_USER"
               elif [[ "$AUTHOR_EMAIL" == *"github.com" ]]; then
+                # 其他GitHub邮箱格式
                 GITHUB_USER=$(echo "$AUTHOR_EMAIL" | sed 's/@.*//')
-                GITHUB_USERS="$GITHUB_USERS $GITHUB_USER"
+              else
+                # 尝试通过git config获取GitHub用户名，或使用预定义映射
+                case "$AUTHOR_EMAIL" in
+                  "iwongjian666@gmail.com")
+                    GITHUB_USER="WangzJi"
+                    ;;
+                  *)
+                    # 使用作者姓名作为GitHub用户名的猜测
+                    GITHUB_USER=$(echo "$AUTHOR_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ //g')
+                    ;;
+                esac
+              fi
+              
+              # 生成Contributors条目
+              if [ ! -z "$GITHUB_USER" ]; then
+                echo "  <td align=\"center\">" >> "$CHANGELOG_FILE"
+                echo "    <a href=\"https://github.com/$GITHUB_USER\">" >> "$CHANGELOG_FILE"
+                echo "      <img src=\"https://github.com/$GITHUB_USER.png?size=60\" width=\"60\" height=\"60\" alt=\"@$GITHUB_USER\" style=\"border-radius: 50%;\"/>" >> "$CHANGELOG_FILE"
+                echo "      <br/>" >> "$CHANGELOG_FILE"
+                echo "      <sub><b>@$GITHUB_USER</b></sub>" >> "$CHANGELOG_FILE"
+                echo "    </a>" >> "$CHANGELOG_FILE"
+                echo "  </td>" >> "$CHANGELOG_FILE"
+              else
+                echo "  <td align=\"center\">" >> "$CHANGELOG_FILE"
+                echo "    <img src=\"https://github.com/identicons/$(echo -n "$AUTHOR_EMAIL" | md5sum | cut -d' ' -f1).png\" width=\"60\" height=\"60\" alt=\"$AUTHOR_NAME\" style=\"border-radius: 50%;\"/>" >> "$CHANGELOG_FILE"
+                echo "    <br/>" >> "$CHANGELOG_FILE"
+                echo "    <sub><b>$AUTHOR_NAME</b></sub>" >> "$CHANGELOG_FILE"
+                echo "  </td>" >> "$CHANGELOG_FILE"
               fi
             done <<< "$CONTRIBUTORS"
             
-            # 生成带头像的Contributors列表
-            if [ ! -z "$GITHUB_USERS" ]; then
-              # 使用HTML格式显示头像
-              echo "<table>" >> "$CHANGELOG_FILE"
-              echo "<tr>" >> "$CHANGELOG_FILE"
-              for user in $GITHUB_USERS; do
-                echo "  <td align=\"center\">" >> "$CHANGELOG_FILE"
-                echo "    <a href=\"https://github.com/$user\">" >> "$CHANGELOG_FILE"
-                echo "      <img src=\"https://github.com/$user.png?size=50\" width=\"50\" height=\"50\" alt=\"@$user\"/>" >> "$CHANGELOG_FILE"
-                echo "      <br/>" >> "$CHANGELOG_FILE"
-                echo "      <sub><b>@$user</b></sub>" >> "$CHANGELOG_FILE"
-                echo "    </a>" >> "$CHANGELOG_FILE"
-                echo "  </td>" >> "$CHANGELOG_FILE"
-              done
-              echo "</tr>" >> "$CHANGELOG_FILE"
-              echo "</table>" >> "$CHANGELOG_FILE"
-            else
-              # 回退到文本格式
-              while IFS= read -r contributor; do
-                AUTHOR_NAME=$(echo "$contributor" | sed 's/ <.*//')
-                echo "* $AUTHOR_NAME" >> "$CHANGELOG_FILE"
-              done <<< "$CONTRIBUTORS"
-            fi
+            echo "</tr>" >> "$CHANGELOG_FILE"
+            echo "</table>" >> "$CHANGELOG_FILE"
             echo "" >> "$CHANGELOG_FILE"
             echo "Your contributions are greatly appreciated! 🎉" >> "$CHANGELOG_FILE"
           fi
