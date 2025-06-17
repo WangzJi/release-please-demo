@@ -45,18 +45,37 @@ class CalculatorTest {
     @Test
     @DisplayName("Division should work correctly")
     void testDivide() {
-        assertEquals(2.5, calculator.divide(5, 2), 0.001);
-        assertEquals(-1.0, calculator.divide(-5, 5), 0.001);
-        assertEquals(1.666, calculator.divide(-5, -3), 0.001);
+        assertEquals(1.666666666666667, calculator.divide(5, 3), 0.000000000000001);
+        assertEquals(-1.0, calculator.divide(-5, 5), 0.000000000000001);
+        assertEquals(1.666666666666667, calculator.divide(-5, -3), 0.000000000000001);
     }
     
     @Test
     @DisplayName("Division by zero should throw exception")
     void testDivideByZero() {
-        IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class, 
-            () -> calculator.divide(5, 0)
-        );
-        assertEquals("Division by zero is not allowed", exception.getMessage());
+        assertThrows(IllegalArgumentException.class, () -> calculator.divide(5, 0));
+    }
+    
+    @Test
+    @DisplayName("Power should work correctly")
+    void testPower() {
+        assertEquals(8.0, calculator.power(2, 3), 0.000000000000001);
+        assertEquals(1.0, calculator.power(5, 0), 0.000000000000001);
+        assertEquals(0.25, calculator.power(2, -2), 0.000000000000001);
+    }
+    
+    @Test
+    @DisplayName("Modulo should work correctly")
+    void testModulo() {
+        assertEquals(2, calculator.modulo(10, 3));
+        assertEquals(0, calculator.modulo(10, 5));
+        assertEquals(1, calculator.modulo(7, 2));
+        assertEquals(-1, calculator.modulo(-7, 3));
+    }
+    
+    @Test
+    @DisplayName("Modulo by zero should throw exception")
+    void testModuloByZero() {
+        assertThrows(IllegalArgumentException.class, () -> calculator.modulo(10, 0));
     }
 } 

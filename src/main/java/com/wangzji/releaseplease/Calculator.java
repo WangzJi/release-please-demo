@@ -72,4 +72,18 @@ public class Calculator {
         }
         return result;
     }
+    
+    /**
+     * Calculate modulo (remainder) of two numbers
+     * @param a dividend
+     * @param b divisor
+     * @return remainder of a divided by b
+     * @throws IllegalArgumentException if divisor is zero
+     */
+    public int modulo(int a, int b) {
+        if (b == 0) {
+            throw new IllegalArgumentException("Modulo by zero is not allowed");
+        }
+        return a % b;
+    }
 } 
