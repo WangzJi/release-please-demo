@@ -24,6 +24,7 @@ public class Application {
         // Demo the calculator functionality
         Calculator calc = new Calculator();
         System.out.println("Demo calculation: 5 + 3 = " + calc.add(5, 3));
+        System.out.println("Demo calculation: 10 % 3 = " + calc.modulo(10, 3));
         
         // Demo the transaction manager
         TransactionManager tm = new TransactionManager();
