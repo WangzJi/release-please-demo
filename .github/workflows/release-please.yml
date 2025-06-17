@@ -121,6 +121,7 @@ jobs:
           
           echo "🔄 Updating draft release: $DRAFT_TAG"
           
+
           # 生成统一的 changelog 内容
           generate_changelog() {
             local VERSION=$1
@@ -262,6 +263,7 @@ jobs:
           
           echo "📋 Generating changelog from $LATEST_TAG to HEAD"
           
+
           # 使用统一的 changelog 生成函数
           generate_changelog() {
             local VERSION=$1
