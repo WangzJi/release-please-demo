@@ -6,7 +6,7 @@ on:
       - main
       - 2.x
       - 2.4
-      - pre-release  # 可以根据需要增加其他分支
+      - pre-release  # 根据需要增加其他分支
   pull_request:
     branches:
       - main
@@ -35,7 +35,7 @@ jobs:
       # Step 4: Create release PR with changelog
       - name: Create Release PR
         run: |
-          release-please release-pr --token ${{ secrets.GITHUB_TOKEN }} --branch $GITHUB_REF_NAME
+          release-please release-pr --token ${{ secrets.GITHUB_TOKEN }} --branch $GITHUB_REF_NAME --repo-url https://github.com/${{ github.repository }}
           
       # Step 5: Commit and push the updated CHANGELOG.md (if necessary)
       - name: Commit and push changelog to repository
