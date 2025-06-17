@@ -9,6 +9,12 @@ on:
       - 'docs/**'
       - '.gitignore'
       - 'LICENSE'
+  pull_request:
+    branches:
+      - main
+      - 2.4
+      - 2.3
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
       release_type:
@@ -35,11 +41,9 @@ permissions:
   pull-requests: write
 
 jobs:
-  validate-pr-title:
-    if: github.event_name == 'push'
   # PR 标题验证
-  pr-validation:
-
+  validate-pr-title:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -49,20 +53,29 @@ jobs:
 
       - name: Validate PR Title for Conventional Commits
         run: |
-          # 获取最新的 commit 信息
-          COMMIT_MSG=$(git log -1 --pretty=format:'%s')
-          echo "🔍 Checking commit: $COMMIT_MSG"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # PR 事件 - 检查 PR 标题
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            echo "🔍 Checking PR title: $PR_TITLE"
+            CHECK_MSG="$PR_TITLE"
+          else
+            # Push 事件 - 检查最新 commit
+            COMMIT_MSG=$(git log -1 --pretty=format:'%s')
+            echo "🔍 Checking commit: $COMMIT_MSG"
+            CHECK_MSG="$COMMIT_MSG"
+          fi
           
           # 检查是否符合常规提交格式
-          if echo "$COMMIT_MSG" | grep -qE '^(feat|fix|docs|style|refactor|test|chore|perf|ci|build)(\(.+\))?: .+'; then
-            echo "✅ Commit follows conventional format"
+          if echo "$CHECK_MSG" | grep -qE '^(feat|fix|docs|style|refactor|test|chore|perf|ci|build)(\(.+\))?: .+'; then
+            echo "✅ Title/Commit follows conventional format"
           else
-            echo "❌ Commit does not follow conventional format"
+            echo "❌ Title/Commit does not follow conventional format"
             echo "Expected format: type(scope): description"
             echo "Valid types: feat, fix, docs, style, refactor, test, chore, perf, ci, build"
             exit 1
           fi
 
+  # 创建草稿发布
   create-draft:
     if: github.event_name == 'push'
     needs: validate-pr-title
@@ -207,6 +220,7 @@ jobs:
           
           echo "✅ Draft release updated: $DRAFT_TAG"
 
+  # 手动正式发布
   manual-release:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
