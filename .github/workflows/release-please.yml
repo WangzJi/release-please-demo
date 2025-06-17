@@ -39,6 +39,7 @@ on:
 jobs:
   # PR 标题验证
   pr-validation:
+
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
