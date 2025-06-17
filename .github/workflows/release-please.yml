@@ -225,6 +225,34 @@ jobs:
             if [ -z "$FEATURES" ] && [ -z "$FIXES" ] && [ -z "$TESTS" ] && [ -z "$OPTIMIZES" ] && [ -z "$OTHERS" ]; then
               echo "No new changes since last release." >> $OUTPUT_FILE
             fi
+            
+            # 添加 Contributors 部分
+            echo "### 🙏 Contributors" >> $OUTPUT_FILE
+            echo "" >> $OUTPUT_FILE
+            CONTRIBUTORS=$(git log ${LATEST_TAG}..HEAD --format='%an <%ae>' | sort -u | grep -v 'github-actions')
+            if [ ! -z "$CONTRIBUTORS" ]; then
+              echo "We'd like to thank the following contributors for this release:" >> $OUTPUT_FILE
+              echo "" >> $OUTPUT_FILE
+              while IFS= read -r contributor; do
+                AUTHOR_NAME=$(echo "$contributor" | sed 's/ <.*//')
+                AUTHOR_EMAIL=$(echo "$contributor" | sed 's/.*<\(.*\)>/\1/')
+                # 生成GitHub用户链接（如果是GitHub邮箱）
+                if [[ "$AUTHOR_EMAIL" == *"@users.noreply.github.com" ]]; then
+                  GITHUB_USER=$(echo "$AUTHOR_EMAIL" | sed 's/.*+\(.*\)@users.noreply.github.com/\1/')
+                  echo "* [@$GITHUB_USER](https://github.com/$GITHUB_USER)" >> $OUTPUT_FILE
+                elif [[ "$AUTHOR_EMAIL" == *"github.com" ]]; then
+                  # 处理其他GitHub邮箱格式
+                  GITHUB_USER=$(echo "$AUTHOR_EMAIL" | sed 's/@.*//') 
+                  echo "* [@$GITHUB_USER](https://github.com/$GITHUB_USER)" >> $OUTPUT_FILE
+                else
+                  echo "* $AUTHOR_NAME" >> $OUTPUT_FILE
+                fi
+              done <<< "$CONTRIBUTORS"
+            else
+              echo "* github-actions[bot]" >> $OUTPUT_FILE
+            fi
+            echo "" >> $OUTPUT_FILE
+            echo "Your contributions are greatly appreciated! 🎉" >> $OUTPUT_FILE
           }
           
           CHANGELOG_FILE="/tmp/changelog.md"
@@ -411,7 +439,8 @@ jobs:
           generate_changelog "$NEW_VERSION" "$LATEST_TAG" "$CHANGELOG_FILE" "true"
           
           echo "📝 Adding contributors section..."
-          CONTRIBUTORS=$(git log ${LATEST_TAG}..HEAD --format='%an' | sort -u | grep -v 'github-actions' | sed 's/^/* /')
+
+          CONTRIBUTORS=$(git log ${LATEST_TAG}..HEAD --format='%an <%ae>' | sort -u | grep -v 'github-actions')
           
           if [ ! -z "$CONTRIBUTORS" ]; then
             echo "" >> "$CHANGELOG_FILE"
@@ -419,9 +448,24 @@ jobs:
             echo "" >> "$CHANGELOG_FILE"
             echo "We'd like to thank the following contributors for this release:" >> "$CHANGELOG_FILE"
             echo "" >> "$CHANGELOG_FILE"
-            echo "$CONTRIBUTORS" >> "$CHANGELOG_FILE"
+
+            while IFS= read -r contributor; do
+              AUTHOR_NAME=$(echo "$contributor" | sed 's/ <.*//')
+              AUTHOR_EMAIL=$(echo "$contributor" | sed 's/.*<\(.*\)>/\1/')
+              # 生成GitHub用户链接（如果是GitHub邮箱）
+              if [[ "$AUTHOR_EMAIL" == *"@users.noreply.github.com" ]]; then
+                GITHUB_USER=$(echo "$AUTHOR_EMAIL" | sed 's/.*+\(.*\)@users.noreply.github.com/\1/')
+                echo "* [@$GITHUB_USER](https://github.com/$GITHUB_USER)" >> "$CHANGELOG_FILE"
+              elif [[ "$AUTHOR_EMAIL" == *"github.com" ]]; then
+                # 处理其他GitHub邮箱格式
+                GITHUB_USER=$(echo "$AUTHOR_EMAIL" | sed 's/@.*//') 
+                echo "* [@$GITHUB_USER](https://github.com/$GITHUB_USER)" >> "$CHANGELOG_FILE"
+              else
+                echo "* $AUTHOR_NAME" >> "$CHANGELOG_FILE"
+              fi
+            done <<< "$CONTRIBUTORS"
             echo "" >> "$CHANGELOG_FILE"
-            echo "Your contributions are greatly appreciated!" >> "$CHANGELOG_FILE"
+            echo "Your contributions are greatly appreciated! 🎉" >> "$CHANGELOG_FILE"
           fi
           
           echo "changelog_file=$CHANGELOG_FILE" >> $GITHUB_OUTPUT
