@@ -1,0 +1,39 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+      - 2.x
+      - 2.4
+      - pre-release  # 可以根据需要增加其他分支
+  pull_request:
+    branches:
+      - main
+      - 2.x
+      - 2.4
+      - pre-release  # 根据需求修改监听分支
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Step 2: Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      # Step 3: Install release-please tool
+      - name: Install release-please
+        run: npm install -g release-please
+
+      # Step 4: Create or Update Release
+      - name: Create Release
+        run: |
+          release-please release --token ${{ secrets.GITHUB_TOKEN }} --branch $GITHUB_REF_NAME
+
