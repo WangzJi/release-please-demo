@@ -26,20 +26,18 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: '16'  # Update to a higher version
+          node-version: '16'
 
       # Step 3: Install release-please tool
       - name: Install release-please
         run: npm install -g release-please
 
-      # Step 4: Generate Changelog
-      - name: Generate Changelog
+      # Step 4: Create release PR with changelog
+      - name: Create Release PR
         run: |
-          release-please changelog --token ${{ secrets.GITHUB_TOKEN }} --branch $GITHUB_REF_NAME
-          changelog=$(cat CHANGELOG.md)
-          echo "$changelog" > CHANGELOG.md
+          release-please release-pr --token ${{ secrets.GITHUB_TOKEN }} --branch $GITHUB_REF_NAME
           
-      # Step 5: Commit and push the updated CHANGELOG.md
+      # Step 5: Commit and push the updated CHANGELOG.md (if necessary)
       - name: Commit and push changelog to repository
         run: |
           git config --global user.name "GitHub Actions"
