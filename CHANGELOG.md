@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.3.0 (2025-06-17)
+
+### 🚀 Features
+
+* add PR validation support for conventional commits (#17) ([a7debe9](https://github.com/WangzJi/release-please-demo/commit/a7debe9))
+* implement custom draft release workflow without release-please PRs (#14) ([e678a2a](https://github.com/WangzJi/release-please-demo/commit/e678a2a))
+
+### 🐛 Bug Fixes
+
+* ensure draft tags use consistent format and update CHANGELOG. (#20) ([546a621](https://github.com/WangzJi/release-please-demo/commit/546a621))
+* remove duplicate job definition in workflow (#18) ([0690f3c](https://github.com/WangzJi/release-please-demo/commit/0690f3c))
+* test fix title #16 ([57f0acc](https://github.com/WangzJi/release-please-demo/commit/57f0acc))
+* configure release-please for proper incremental changelog generation (#11) ([f495c58](https://github.com/WangzJi/release-please-demo/commit/f495c58))
+
+### 🔧 Other Changes
+
+* implement custom draft release workflow without release-please PRsure (#19) ([fa19b98](https://github.com/WangzJi/release-please-demo/commit/fa19b98))
+* test pr title 2 ([cfdc373](https://github.com/WangzJi/release-please-demo/commit/cfdc373))
+* test pr title (#13) ([2b4d9b8](https://github.com/WangzJi/release-please-demo/commit/2b4d9b8))
+
+
 ## [1.2.0](https://github.com/WangzJi/release-please-demo/compare/release-please-demo-v1.1.0...release-please-demo-v1.2.0) (2025-06-17)
 
 
