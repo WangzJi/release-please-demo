@@ -30,12 +30,6 @@ jobs:
         with:
           node-version: 'lts/*'
 
-      # Step 3: Install dependencies & run tests（可选，如果有测试）
-      - name: Install dependencies
-        run: npm ci
-      - name: Run tests
-        run: npm test
-
       # Step 4: Install release-please（锁定最新稳定版本，可选加版本号）
       - name: Install release-please
         run: npm install -g release-please@latest
