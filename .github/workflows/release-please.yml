@@ -134,7 +134,7 @@ jobs:
           echo "draft_version=$DRAFT_VERSION" >> $GITHUB_OUTPUT
           echo "🔄 Draft version: $DRAFT_VERSION"
 
-      - name: Update Draft Release
+      - name: Update Draft Release and CHANGELOG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -143,6 +143,16 @@ jobs:
           DRAFT_TAG="${DRAFT_VERSION}-draft"
           
           echo "🔄 Updating draft release: $DRAFT_TAG"
+          
+          # 清理旧的draft标签（防止格式不一致）
+          echo "🧹 Cleaning up old draft tags..."
+          git tag -l | grep -E "(draft|DRAFT)" | while read tag; do
+            if [ "$tag" != "$DRAFT_TAG" ]; then
+              echo "Deleting old draft tag: $tag"
+              git tag -d "$tag" 2>/dev/null || true
+              git push origin :refs/tags/"$tag" 2>/dev/null || true
+            fi
+          done
           
 
           # 生成统一的 changelog 内容（清理版本）
@@ -233,6 +243,36 @@ jobs:
             -F body="$(cat $CHANGELOG_FILE)" \
             -F draft=true \
             -f target_commitish="main"
+          
+          # 更新 CHANGELOG.md 文件
+          echo "📝 Updating CHANGELOG.md..."
+          
+          # 生成新的 CHANGELOG.md 内容
+          NEW_CHANGELOG_FILE="/tmp/new_changelog.md"
+          echo "# Changelog" > $NEW_CHANGELOG_FILE
+          echo "" >> $NEW_CHANGELOG_FILE
+          
+          # 添加当前draft版本的changelog
+          cat $CHANGELOG_FILE >> $NEW_CHANGELOG_FILE
+          echo "" >> $NEW_CHANGELOG_FILE
+          
+          # 添加现有的CHANGELOG内容（跳过标题）
+          if [ -f "CHANGELOG.md" ]; then
+            tail -n +3 CHANGELOG.md >> $NEW_CHANGELOG_FILE
+          fi
+          
+          # 替换 CHANGELOG.md
+          mv $NEW_CHANGELOG_FILE CHANGELOG.md
+          
+          # 提交更新的 CHANGELOG.md
+          if ! git diff --quiet CHANGELOG.md; then
+            echo "📝 Committing updated CHANGELOG.md..."
+            git add CHANGELOG.md
+            git commit -m "chore: update CHANGELOG.md for $DRAFT_VERSION draft"
+            git push origin main
+          else
+            echo "📝 CHANGELOG.md is already up to date"
+          fi
           
           echo "✅ Draft release updated: $DRAFT_TAG"
 
