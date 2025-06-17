@@ -1,56 +1,45 @@
 name: Release Please
 
 on:
+  # 推送到 main 分支 - 只更新草稿，不升级版本
   push:
     branches:
       - main
+  
+  # PR 验证
   pull_request:
     branches:
       - main
-    types: [opened, synchronize, reopened, closed]
+      - '2.4'
+      - '2.3'
+    types: [opened, synchronize, reopened]
+
+  # 手动触发正式发布（这时才升级版本）
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Type of version bump'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      branch:
+        description: 'Target branch for release'
+        required: true
+        default: 'main'
+        type: choice
+        options:
+          - main
+          - '2.4'
+          - '2.3'
 
 jobs:
-  release-please:
-    runs-on: ubuntu-latest
-    # Only run release-please on merge to main (not on PR events)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Release Please Action
-        uses: googleapis/release-please-action@v4
-        id: release
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-
-      # Output when draft release is created
-      - name: Draft Release Created
-        if: ${{ steps.release.outputs.release_created }}
-        run: |
-          echo "🎉 Draft Release Created from PR titles!"
-          echo "📦 Tag: ${{ steps.release.outputs.tag_name }}"
-          echo "📝 CHANGELOG.md generated from merged PR titles"
-          echo "🔗 Draft Release URL: https://github.com/${{ github.repository }}/releases"
-          echo "✅ Review and publish the draft release when ready"
-
-      # Output when no releasable changes found
-      - name: No Release Changes
-        if: ${{ !steps.release.outputs.release_created }}
-        run: |
-          echo "ℹ️ No releasable PR titles found since last release"
-          echo "📝 PR titles must use conventional format:"
-          echo "   feat: add new feature"
-          echo "   fix: resolve bug issue"
-          echo "   feat!: breaking change"
-
+  # PR 标题验证
   pr-validation:
     runs-on: ubuntu-latest
-    # Only run on PR events
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout
@@ -61,24 +50,249 @@ jobs:
           PR_TITLE="${{ github.event.pull_request.title }}"
           echo "🔍 Validating PR title: $PR_TITLE"
           
-          # Check if PR title follows conventional commit format
           if echo "$PR_TITLE" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?!?:\s.+"; then
             echo "✅ PR title follows conventional commit format"
-            echo "📝 This will be included in the changelog when merged"
+            echo "📝 This will be included in the changelog when released"
           else
             echo "❌ PR title does not follow conventional commit format"
-            echo "📋 Expected format: type: description"
-            echo "📋 Examples:"
-            echo "   feat: add new feature"
-            echo "   fix: resolve bug issue"
-            echo "   docs: update documentation"
             exit 1
           fi
 
-      - name: PR Event Info
+  # main 分支推送 - 只更新草稿，不升级版本
+  update-draft:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Latest Tag
+        id: latest_tag
         run: |
-          echo "📝 PR Event: ${{ github.event.action }}"
-          echo "🔗 PR Number: ${{ github.event.pull_request.number }}"
-          echo "👤 Author: ${{ github.event.pull_request.user.login }}"
-          echo "🎯 Target Branch: ${{ github.event.pull_request.base.ref }}"
-          echo "🌿 Source Branch: ${{ github.event.pull_request.head.ref }}"
+          # 获取最新的非草稿 tag
+          LATEST_TAG=$(git tag --sort=-version:refname | grep -v "draft" | head -1)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v1.0.0"
+          fi
+          
+          # 计算下一个版本作为草稿版本
+          VERSION=${LATEST_TAG#v}
+          IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
+          MAJOR=${VERSION_PARTS[0]}
+          MINOR=${VERSION_PARTS[1]}
+          PATCH=${VERSION_PARTS[2]}
+          
+          # 默认按 minor 升级作为草稿版本
+          MINOR=$((MINOR + 1))
+          PATCH=0
+          
+          DRAFT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "draft_version=$DRAFT_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Latest tag: $LATEST_TAG"
+          echo "📝 Draft version: $DRAFT_VERSION"
+
+      - name: Update Draft Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST_TAG="${{ steps.latest_tag.outputs.latest_tag }}"
+          DRAFT_VERSION="${{ steps.latest_tag.outputs.draft_version }}"
+          DRAFT_TAG="${DRAFT_VERSION}-draft"
+          
+          echo "🔄 Updating draft release: $DRAFT_TAG"
+          
+          # 生成从最新 tag 以来的 changelog
+          CHANGELOG="## Changes for $DRAFT_VERSION\n\n"
+          CHANGELOG="${CHANGELOG}*Based on $LATEST_TAG*\n\n"
+          
+          # 获取从最新 tag 到 HEAD 的提交
+          if [ "$LATEST_TAG" != "v1.0.0" ]; then
+            COMMITS=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^feat\|^fix\|^perf\|^refactor\|^docs\|^test\|^chore")
+          else
+            COMMITS=$(git log HEAD --oneline --grep="^feat\|^fix\|^perf\|^refactor\|^docs\|^test\|^chore")
+          fi
+          
+          if [ ! -z "$COMMITS" ]; then
+            CHANGELOG="${CHANGELOG}### 📝 Changes:\n"
+            while IFS= read -r commit; do
+              CHANGELOG="${CHANGELOG}- ${commit}\n"
+            done <<< "$COMMITS"
+          else
+            CHANGELOG="${CHANGELOG}No new changes since last release.\n"
+          fi
+          
+          # 删除现有的草稿（如果存在）
+          if gh api repos/${{ github.repository }}/releases/tags/$DRAFT_TAG >/dev/null 2>&1; then
+            echo "🗑️ Deleting existing draft release..."
+            gh api --method DELETE repos/${{ github.repository }}/releases/tags/$DRAFT_TAG || true
+            git push --delete origin $DRAFT_TAG || true
+            git tag -d $DRAFT_TAG || true
+          fi
+          
+          # 创建新的草稿 release
+          echo "📝 Creating new draft release: $DRAFT_TAG"
+          gh api repos/${{ github.repository }}/releases \
+            -f tag_name="$DRAFT_TAG" \
+            -f name="$DRAFT_VERSION (Draft)" \
+            -f body="$CHANGELOG" \
+            -F draft=true \
+            -f target_commitish="main"
+          
+          echo "✅ Draft release updated: $DRAFT_TAG"
+
+  # 手动触发正式发布 - 这时才升级版本
+  manual-release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Latest Tag and Calculate New Version
+        id: version_calc
+        run: |
+          # 获取最新的非草稿 tag
+          LATEST_TAG=$(git tag --sort=-version:refname | grep -v "draft" | head -1)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v1.0.0"
+          fi
+          
+          echo "📦 Latest release tag: $LATEST_TAG"
+          
+          # 解析版本号
+          VERSION=${LATEST_TAG#v}
+          IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
+          MAJOR=${VERSION_PARTS[0]}
+          MINOR=${VERSION_PARTS[1]}
+          PATCH=${VERSION_PARTS[2]}
+          
+          # 根据输入计算新版本
+          case "${{ github.event.inputs.release_type }}" in
+            "major")
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            "minor")
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            "patch")
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "🚀 New version will be: $NEW_VERSION"
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          LATEST_TAG="${{ steps.version_calc.outputs.latest_tag }}"
+          NEW_VERSION="${{ steps.version_calc.outputs.new_version }}"
+          
+          echo "📋 Generating changelog from $LATEST_TAG to HEAD"
+          
+          # 生成 changelog
+          CHANGELOG="## $NEW_VERSION ($(date +%Y-%m-%d))\n\n"
+          
+          # 分类收集提交
+          FEATURES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^feat" | sed 's/^/- /')
+          FIXES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^fix" | sed 's/^/- /')
+          OTHERS=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^docs\|^style\|^refactor\|^test\|^chore\|^perf\|^ci\|^build" | sed 's/^/- /')
+          
+          if [ ! -z "$FEATURES" ]; then
+            CHANGELOG="${CHANGELOG}### 🚀 Features\n${FEATURES}\n\n"
+          fi
+          
+          if [ ! -z "$FIXES" ]; then
+            CHANGELOG="${CHANGELOG}### 🐛 Bug Fixes\n${FIXES}\n\n"
+          fi
+          
+          if [ ! -z "$OTHERS" ]; then
+            CHANGELOG="${CHANGELOG}### 🔧 Other Changes\n${OTHERS}\n\n"
+          fi
+          
+          # 保存到文件（GitHub API 有长度限制）
+          echo -e "$CHANGELOG" > /tmp/changelog.md
+          echo "changelog_file=/tmp/changelog.md" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_VERSION="${{ steps.version_calc.outputs.new_version }}"
+          BRANCH="${{ github.event.inputs.branch }}"
+          CHANGELOG_FILE="${{ steps.changelog.outputs.changelog_file }}"
+          
+          echo "🚀 Creating release: $NEW_VERSION on branch: $BRANCH"
+          
+                     # 删除当前草稿版本（如果存在）
+           # 计算当前应该存在的草稿版本
+           LATEST_TAG="${{ steps.version_calc.outputs.latest_tag }}"
+           VERSION=${LATEST_TAG#v}
+           IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
+           CURRENT_DRAFT_MINOR=$((VERSION_PARTS[1] + 1))
+           CURRENT_DRAFT_TAG="v${VERSION_PARTS[0]}.${CURRENT_DRAFT_MINOR}.0-draft"
+           
+           if gh api repos/${{ github.repository }}/releases/tags/$CURRENT_DRAFT_TAG >/dev/null 2>&1; then
+             echo "🗑️ Cleaning up current draft release: $CURRENT_DRAFT_TAG"
+             gh api --method DELETE repos/${{ github.repository }}/releases/tags/$CURRENT_DRAFT_TAG || true
+             git push --delete origin $CURRENT_DRAFT_TAG || true
+           fi
+          
+          # 创建 tag
+          git tag $NEW_VERSION HEAD
+          git push origin $NEW_VERSION
+          
+          # 创建正式 release
+          if [ "$BRANCH" = "2.3" ]; then
+            # 2.3 分支 - 稳定版本
+            gh release create $NEW_VERSION \
+              --title "$NEW_VERSION" \
+              --notes-file "$CHANGELOG_FILE" \
+              --target "$BRANCH"
+          elif [ "$BRANCH" = "2.4" ]; then
+            # 2.4 分支 - 预发布版本
+            gh release create $NEW_VERSION \
+              --title "$NEW_VERSION (Pre-release)" \
+              --notes-file "$CHANGELOG_FILE" \
+              --prerelease \
+              --target "$BRANCH"
+          else
+            # main 分支 - 草稿版本
+            gh release create $NEW_VERSION \
+              --title "$NEW_VERSION (Draft)" \
+              --notes-file "$CHANGELOG_FILE" \
+              --draft \
+              --target "$BRANCH"
+          fi
+          
+          echo "✅ Release $NEW_VERSION created successfully!"
+
+      - name: Update Version Files
+        if: github.event.inputs.branch == 'main'
+        run: |
+          NEW_VERSION="${{ steps.version_calc.outputs.new_version }}"
+          VERSION_NUMBER=${NEW_VERSION#v}
+          
+          # 更新 version.txt
+          echo "$VERSION_NUMBER" > version.txt
+          
+          # 更新 manifest
+          echo "{\".\": \"$VERSION_NUMBER\"}" > .release-please-manifest.json
+          
+          # 提交版本更新
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.txt .release-please-manifest.json
+          git commit -m "chore: release $NEW_VERSION" || true
+          git push origin main || true
