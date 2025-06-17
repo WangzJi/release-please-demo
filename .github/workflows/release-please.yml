@@ -21,12 +21,8 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: github-release
-          release-type: simple
-          package-name: release-please-demo
-          draft: true
-          pull-request-title-pattern: "chore${scope}: release${component} ${version}"
-          conventional-commits: false
-          changelog-types: '[{"type":"feat","section":"🚀 Features","hidden":false},{"type":"fix","section":"🐛 Bug Fixes","hidden":false},{"type":"perf","section":"⚡ Performance Improvements","hidden":false},{"type":"revert","section":"⏪ Reverts","hidden":false},{"type":"docs","section":"📝 Documentation","hidden":false},{"type":"style","section":"💄 Styles","hidden":false},{"type":"refactor","section":"♻️ Code Refactoring","hidden":false},{"type":"test","section":"✅ Tests","hidden":false},{"type":"build","section":"🔧 Build System","hidden":false},{"type":"ci","section":"👷 CI","hidden":false},{"type":"chore","section":"🔨 Miscellaneous","hidden":false}]'
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
 
       # Output when draft release is created
       - name: Draft Release Created
