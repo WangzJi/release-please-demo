@@ -97,29 +97,36 @@ jobs:
       - name: Get Latest Tag and Calculate Draft Version
         id: latest_tag
         run: |
-          # 获取最新的 tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+          # 获取最新的正式发布 tag（排除草稿）
+          LATEST_TAG=$(git tag --sort=-version:refname | grep -v "draft" | head -1)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v1.0.0"
+          fi
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "📌 Latest tag: $LATEST_TAG"
+          echo "📌 Latest release tag: $LATEST_TAG"
           
-          # 计算下一个版本号（始终增加 minor 版本）
+          # 计算下一个版本号
           VERSION=${LATEST_TAG#v}
           IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
           MAJOR=${VERSION_PARTS[0]}
           MINOR=${VERSION_PARTS[1]}
           PATCH=${VERSION_PARTS[2]}
           
-          # 检查最新提交类型来决定版本升级策略
-          LATEST_COMMIT=$(git log -1 --pretty=format:'%s')
-          if echo "$LATEST_COMMIT" | grep -q '^feat'; then
-            # feat 提交 -> minor 版本升级
+          # 检查从最新 tag 到 HEAD 的提交来决定版本升级策略
+          HAS_FEAT=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^feat" | wc -l)
+          HAS_BREAKING=$(git log ${LATEST_TAG}..HEAD --oneline --grep="BREAKING CHANGE\|!" | wc -l)
+          
+          if [ "$HAS_BREAKING" -gt 0 ]; then
+            # 有破坏性变更 -> major 版本升级
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "$HAS_FEAT" -gt 0 ]; then
+            # 有新功能 -> minor 版本升级
             MINOR=$((MINOR + 1))
             PATCH=0
-          elif echo "$LATEST_COMMIT" | grep -q '^fix'; then
-            # fix 提交 -> patch 版本升级
-            PATCH=$((PATCH + 1))
           else
-            # 其他提交 -> patch 版本升级
+            # 只有修复或其他 -> patch 版本升级
             PATCH=$((PATCH + 1))
           fi
           
@@ -138,7 +145,7 @@ jobs:
           echo "🔄 Updating draft release: $DRAFT_TAG"
           
 
-          # 生成统一的 changelog 内容
+          # 生成统一的 changelog 内容（清理版本）
           generate_changelog() {
             local VERSION=$1
             local LATEST_TAG=$2
@@ -165,7 +172,9 @@ jobs:
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                echo "* $COMMIT_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
+                # 清理 commit 信息，去掉 feat: 前缀
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^feat[(:][^)]*[)]:\s*//' | sed 's/^feat:\s*//')
+                echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$FEATURES"
               echo "" >> $OUTPUT_FILE
             fi
@@ -177,7 +186,9 @@ jobs:
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                echo "* $COMMIT_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
+                # 清理 commit 信息，去掉 fix: 前缀
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^fix[(:][^)]*[)]:\s*//' | sed 's/^fix:\s*//')
+                echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$FIXES"
               echo "" >> $OUTPUT_FILE
             fi
@@ -189,7 +200,9 @@ jobs:
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                echo "* $COMMIT_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
+                # 清理 commit 信息，去掉类型前缀
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed -E 's/^(docs|style|refactor|test|chore|perf|ci|build)[(:][^)]*[)]:\s*//' | sed -E 's/^(docs|style|refactor|test|chore|perf|ci|build):\s*//')
+                echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$OTHERS"
               echo "" >> $OUTPUT_FILE
             fi
@@ -308,7 +321,9 @@ jobs:
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                echo "* $COMMIT_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
+                # 清理 commit 信息，去掉 feat: 前缀
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^feat[(:][^)]*[)]:\s*//' | sed 's/^feat:\s*//')
+                echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$FEATURES"
               echo "" >> $OUTPUT_FILE
             fi
@@ -320,7 +335,9 @@ jobs:
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                echo "* $COMMIT_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
+                # 清理 commit 信息，去掉 fix: 前缀
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^fix[(:][^)]*[)]:\s*//' | sed 's/^fix:\s*//')
+                echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$FIXES"
               echo "" >> $OUTPUT_FILE
             fi
@@ -332,7 +349,9 @@ jobs:
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                echo "* $COMMIT_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
+                # 清理 commit 信息，去掉类型前缀
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed -E 's/^(docs|style|refactor|test|chore|perf|ci|build)[(:][^)]*[)]:\s*//' | sed -E 's/^(docs|style|refactor|test|chore|perf|ci|build):\s*//')
+                echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$OTHERS"
               echo "" >> $OUTPUT_FILE
             fi
