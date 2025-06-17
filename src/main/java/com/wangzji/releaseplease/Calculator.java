@@ -48,4 +48,28 @@ public class Calculator {
         }
         return (double) a / b;
     }
+    
+    /**
+     * Calculate power of a number
+     * Fixed: Handle negative exponents properly
+     * @param base the base number
+     * @param exponent the exponent
+     * @return base raised to the power of exponent
+     */
+    public double power(double base, int exponent) {
+        if (exponent == 0) {
+            return 1.0;
+        }
+        
+        if (exponent < 0) {
+            // Fixed: Properly handle negative exponents
+            return 1.0 / power(base, -exponent);
+        }
+        
+        double result = 1.0;
+        for (int i = 0; i < exponent; i++) {
+            result *= base;
+        }
+        return result;
+    }
 } 
