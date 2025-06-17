@@ -21,6 +21,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: github-release
+          release-type: simple
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
