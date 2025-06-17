@@ -439,6 +439,7 @@ jobs:
           generate_changelog "$NEW_VERSION" "$LATEST_TAG" "$CHANGELOG_FILE" "true"
           
           echo "📝 Adding contributors section..."
+
           CONTRIBUTORS=$(git log ${LATEST_TAG}..HEAD --format='%an <%ae>' | sort -u | grep -v 'github-actions')
           
           if [ ! -z "$CONTRIBUTORS" ]; then
@@ -447,6 +448,7 @@ jobs:
             echo "" >> "$CHANGELOG_FILE"
             echo "We'd like to thank the following contributors for this release:" >> "$CHANGELOG_FILE"
             echo "" >> "$CHANGELOG_FILE"
+
             while IFS= read -r contributor; do
               AUTHOR_NAME=$(echo "$contributor" | sed 's/ <.*//')
               AUTHOR_EMAIL=$(echo "$contributor" | sed 's/.*<\(.*\)>/\1/')
