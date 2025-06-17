@@ -42,7 +42,6 @@ permissions:
   pull-requests: write
 
 jobs:
-  # PR 标题验证
   validate-pr-title:
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -54,31 +53,25 @@ jobs:
 
       - name: Validate PR Title for Conventional Commits
         run: |
-
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR 事件 - 检查 PR 标题
             PR_TITLE="${{ github.event.pull_request.title }}"
             echo "🔍 Checking PR title: $PR_TITLE"
             CHECK_MSG="$PR_TITLE"
           else
-            # Push 事件 - 检查最新 commit
             COMMIT_MSG=$(git log -1 --pretty=format:'%s')
             echo "🔍 Checking commit: $COMMIT_MSG"
             CHECK_MSG="$COMMIT_MSG"
           fi
           
-          # 检查是否符合常规提交格式
-          if echo "$CHECK_MSG" | grep -qE '^(feat|fix|docs|style|refactor|test|chore|perf|ci|build)(\(.+\))?: .+'; then
+          if echo "$CHECK_MSG" | grep -qE '^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|optimize)(\(.+\))?: .+'; then
             echo "✅ Title/Commit follows conventional format"
           else
             echo "❌ Title/Commit does not follow conventional format"
             echo "Expected format: type(scope): description"
-            echo "Valid types: feat, fix, docs, style, refactor, test, chore, perf, ci, build"
+            echo "Valid types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, optimize"
             exit 1
           fi
 
-
-  # 创建草稿发布
   create-draft:
     if: github.event_name == 'push'
     needs: validate-pr-title
@@ -97,7 +90,6 @@ jobs:
       - name: Get Latest Tag and Calculate Draft Version
         id: latest_tag
         run: |
-          # 获取最新的正式发布 tag（排除草稿）
           LATEST_TAG=$(git tag --sort=-version:refname | grep -v "draft" | head -1)
           if [ -z "$LATEST_TAG" ]; then
             LATEST_TAG="v1.0.0"
@@ -105,28 +97,23 @@ jobs:
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "📌 Latest release tag: $LATEST_TAG"
           
-          # 计算下一个版本号
           VERSION=${LATEST_TAG#v}
           IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
           MAJOR=${VERSION_PARTS[0]}
           MINOR=${VERSION_PARTS[1]}
           PATCH=${VERSION_PARTS[2]}
           
-          # 检查从最新 tag 到 HEAD 的提交来决定版本升级策略
           HAS_FEAT=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^feat" | wc -l)
           HAS_BREAKING=$(git log ${LATEST_TAG}..HEAD --oneline --grep="BREAKING CHANGE\|!" | wc -l)
           
           if [ "$HAS_BREAKING" -gt 0 ]; then
-            # 有破坏性变更 -> major 版本升级
             MAJOR=$((MAJOR + 1))
             MINOR=0
             PATCH=0
           elif [ "$HAS_FEAT" -gt 0 ]; then
-            # 有新功能 -> minor 版本升级
             MINOR=$((MINOR + 1))
             PATCH=0
           else
-            # 只有修复或其他 -> patch 版本升级
             PATCH=$((PATCH + 1))
           fi
           
@@ -144,7 +131,6 @@ jobs:
           
           echo "🔄 Updating draft release: $DRAFT_TAG"
           
-          # 清理旧的draft标签（防止格式不一致）
           echo "🧹 Cleaning up old draft tags..."
           git tag -l | grep -E "(draft|DRAFT)" | while read tag; do
             if [ "$tag" != "$DRAFT_TAG" ]; then
@@ -154,80 +140,96 @@ jobs:
             fi
           done
           
-
-          # 生成统一的 changelog 内容（清理版本）
           generate_changelog() {
             local VERSION=$1
             local LATEST_TAG=$2
             local OUTPUT_FILE=$3
-            
+          
             echo "## $VERSION ($(date +%Y-%m-%d))" > $OUTPUT_FILE
             echo "" >> $OUTPUT_FILE
-            
-            # 分类收集从最新 tag 到 HEAD 的提交
+          
             if [ "$LATEST_TAG" != "v1.0.0" ]; then
               FEATURES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^feat")
               FIXES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^fix")
-              OTHERS=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^docs\|^style\|^refactor\|^test\|^chore\|^perf\|^ci\|^build")
+              TESTS=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^test")
+              OPTIMIZES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^optimize")
+              OTHERS=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^docs\|^style\|^refactor\|^chore\|^perf\|^ci\|^build")
             else
               FEATURES=$(git log HEAD --oneline --grep="^feat")
               FIXES=$(git log HEAD --oneline --grep="^fix")
-              OTHERS=$(git log HEAD --oneline --grep="^docs\|^style\|^refactor\|^test\|^chore\|^perf\|^ci\|^build")
+              TESTS=$(git log HEAD --oneline --grep="^test")
+              OPTIMIZES=$(git log HEAD --oneline --grep="^optimize")
+              OTHERS=$(git log HEAD --oneline --grep="^docs\|^style\|^refactor\|^chore\|^perf\|^ci\|^build")
             fi
-            
-            # 添加 Features
+          
             if [ ! -z "$FEATURES" ]; then
               echo "### 🚀 Features" >> $OUTPUT_FILE
               echo "" >> $OUTPUT_FILE
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                # 清理 commit 信息，去掉 feat: 前缀
                 CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^feat[(:][^)]*[)]:\s*//' | sed 's/^feat:\s*//')
                 echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$FEATURES"
               echo "" >> $OUTPUT_FILE
             fi
-            
-            # 添加 Bug Fixes
+          
             if [ ! -z "$FIXES" ]; then
               echo "### 🐛 Bug Fixes" >> $OUTPUT_FILE
               echo "" >> $OUTPUT_FILE
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                # 清理 commit 信息，去掉 fix: 前缀
                 CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^fix[(:][^)]*[)]:\s*//' | sed 's/^fix:\s*//')
                 echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$FIXES"
               echo "" >> $OUTPUT_FILE
             fi
-            
-            # 添加 Other Changes
+          
+            if [ ! -z "$TESTS" ]; then
+              echo "### 🧪 Tests" >> $OUTPUT_FILE
+              echo "" >> $OUTPUT_FILE
+              while IFS= read -r commit; do
+                COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
+                COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^test[(:][^)]*[)]:\s*//' | sed 's/^test:\s*//')
+                echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
+              done <<< "$TESTS"
+              echo "" >> $OUTPUT_FILE
+            fi
+          
+            if [ ! -z "$OPTIMIZES" ]; then
+              echo "### ✨ Optimizations" >> $OUTPUT_FILE
+              echo "" >> $OUTPUT_FILE
+              while IFS= read -r commit; do
+                COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
+                COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^optimize[(:][^)]*[)]:\s*//' | sed 's/^optimize:\s*//')
+                echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
+              done <<< "$OPTIMIZES"
+              echo "" >> $OUTPUT_FILE
+            fi
+          
             if [ ! -z "$OTHERS" ]; then
               echo "### 🔧 Other Changes" >> $OUTPUT_FILE
               echo "" >> $OUTPUT_FILE
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                # 清理 commit 信息，去掉类型前缀
-                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed -E 's/^(docs|style|refactor|test|chore|perf|ci|build)[(:][^)]*[)]:\s*//' | sed -E 's/^(docs|style|refactor|test|chore|perf|ci|build):\s*//')
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed -E 's/^(docs|style|refactor|chore|perf|ci|build)[(:][^)]*[)]:\s*//' | sed -E 's/^(docs|style|refactor|chore|perf|ci|build):\s*//')
                 echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$OTHERS"
               echo "" >> $OUTPUT_FILE
             fi
-            
-            # 如果没有任何变更
-            if [ -z "$FEATURES" ] && [ -z "$FIXES" ] && [ -z "$OTHERS" ]; then
+          
+            if [ -z "$FEATURES" ] && [ -z "$FIXES" ] && [ -z "$TESTS" ] && [ -z "$OPTIMIZES" ] && [ -z "$OTHERS" ]; then
               echo "No new changes since last release." >> $OUTPUT_FILE
             fi
           }
           
-          # 生成 changelog
           CHANGELOG_FILE="/tmp/changelog.md"
           generate_changelog "$DRAFT_VERSION" "$LATEST_TAG" "$CHANGELOG_FILE"
           
-          # 删除现有的草稿（如果存在）
           if gh api repos/${{ github.repository }}/releases/tags/$DRAFT_TAG >/dev/null 2>&1; then
             echo "🗑️ Deleting existing draft release..."
             gh api --method DELETE repos/${{ github.repository }}/releases/tags/$DRAFT_TAG || true
@@ -235,7 +237,6 @@ jobs:
             git tag -d $DRAFT_TAG || true
           fi
           
-          # 创建新的草稿 release
           echo "📝 Creating new draft release: $DRAFT_TAG"
           gh api repos/${{ github.repository }}/releases \
             -f tag_name="$DRAFT_TAG" \
@@ -244,27 +245,19 @@ jobs:
             -F draft=true \
             -f target_commitish="main"
           
-          # 更新 CHANGELOG.md 文件
           echo "📝 Updating CHANGELOG.md..."
-          
-          # 生成新的 CHANGELOG.md 内容
           NEW_CHANGELOG_FILE="/tmp/new_changelog.md"
           echo "# Changelog" > $NEW_CHANGELOG_FILE
           echo "" >> $NEW_CHANGELOG_FILE
-          
-          # 添加当前draft版本的changelog
           cat $CHANGELOG_FILE >> $NEW_CHANGELOG_FILE
           echo "" >> $NEW_CHANGELOG_FILE
           
-          # 添加现有的CHANGELOG内容（跳过标题）
           if [ -f "CHANGELOG.md" ]; then
             tail -n +3 CHANGELOG.md >> $NEW_CHANGELOG_FILE
           fi
           
-          # 替换 CHANGELOG.md
           mv $NEW_CHANGELOG_FILE CHANGELOG.md
           
-          # 提交更新的 CHANGELOG.md
           if ! git diff --quiet CHANGELOG.md; then
             echo "📝 Committing updated CHANGELOG.md..."
             git add CHANGELOG.md
@@ -276,8 +269,6 @@ jobs:
           
           echo "✅ Draft release updated: $DRAFT_TAG"
 
-
-  # 手动正式发布
   manual-release:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -298,14 +289,12 @@ jobs:
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
           echo "📌 Latest tag: $LATEST_TAG"
           
-          # 解析当前版本
           VERSION=${LATEST_TAG#v}
           IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
           MAJOR=${VERSION_PARTS[0]}
           MINOR=${VERSION_PARTS[1]}
           PATCH=${VERSION_PARTS[2]}
           
-          # 根据输入计算新版本
           case "${{ github.event.inputs.release_type }}" in
             "major")
               MAJOR=$((MAJOR + 1))
@@ -334,77 +323,106 @@ jobs:
           
           echo "📋 Generating changelog from $LATEST_TAG to HEAD"
           
-
-          # 使用统一的 changelog 生成函数
           generate_changelog() {
             local VERSION=$1
             local LATEST_TAG=$2
             local OUTPUT_FILE=$3
             local IS_RELEASE=$4
-            
+          
             if [ "$IS_RELEASE" = "true" ]; then
               echo "## [$VERSION](https://github.com/${{ github.repository }}/releases/tag/$VERSION) ($(date +%Y-%m-%d))" > $OUTPUT_FILE
             else
               echo "## $VERSION ($(date +%Y-%m-%d))" > $OUTPUT_FILE
             fi
             echo "" >> $OUTPUT_FILE
-            
-            # 分类收集提交
+          
             FEATURES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^feat")
             FIXES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^fix")
-            OTHERS=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^docs\|^style\|^refactor\|^test\|^chore\|^perf\|^ci\|^build")
-            
-            # 添加 Features
+            TESTS=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^test")
+            OPTIMIZES=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^optimize")
+            OTHERS=$(git log ${LATEST_TAG}..HEAD --oneline --grep="^docs\|^style\|^refactor\|^chore\|^perf\|^ci\|^build")
+          
             if [ ! -z "$FEATURES" ]; then
               echo "### 🚀 Features" >> $OUTPUT_FILE
               echo "" >> $OUTPUT_FILE
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                # 清理 commit 信息，去掉 feat: 前缀
                 CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^feat[(:][^)]*[)]:\s*//' | sed 's/^feat:\s*//')
                 echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$FEATURES"
               echo "" >> $OUTPUT_FILE
             fi
-            
-            # 添加 Bug Fixes
+          
             if [ ! -z "$FIXES" ]; then
               echo "### 🐛 Bug Fixes" >> $OUTPUT_FILE
               echo "" >> $OUTPUT_FILE
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                # 清理 commit 信息，去掉 fix: 前缀
                 CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^fix[(:][^)]*[)]:\s*//' | sed 's/^fix:\s*//')
                 echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$FIXES"
               echo "" >> $OUTPUT_FILE
             fi
-            
-            # 添加 Other Changes
+          
+            if [ ! -z "$TESTS" ]; then
+              echo "### 🧪 Tests" >> $OUTPUT_FILE
+              echo "" >> $OUTPUT_FILE
+              while IFS= read -r commit; do
+                COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
+                COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^test[(:][^)]*[)]:\s*//' | sed 's/^test:\s*//')
+                echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
+              done <<< "$TESTS"
+              echo "" >> $OUTPUT_FILE
+            fi
+          
+            if [ ! -z "$OPTIMIZES" ]; then
+              echo "### ✨ Optimizations" >> $OUTPUT_FILE
+              echo "" >> $OUTPUT_FILE
+              while IFS= read -r commit; do
+                COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
+                COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed 's/^optimize[(:][^)]*[)]:\s*//' | sed 's/^optimize:\s*//')
+                echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
+              done <<< "$OPTIMIZES"
+              echo "" >> $OUTPUT_FILE
+            fi
+          
             if [ ! -z "$OTHERS" ]; then
               echo "### 🔧 Other Changes" >> $OUTPUT_FILE
               echo "" >> $OUTPUT_FILE
               while IFS= read -r commit; do
                 COMMIT_HASH=$(echo "$commit" | cut -d' ' -f1)
                 COMMIT_MSG=$(echo "$commit" | cut -d' ' -f2-)
-                # 清理 commit 信息，去掉类型前缀
-                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed -E 's/^(docs|style|refactor|test|chore|perf|ci|build)[(:][^)]*[)]:\s*//' | sed -E 's/^(docs|style|refactor|test|chore|perf|ci|build):\s*//')
+                CLEAN_MSG=$(echo "$COMMIT_MSG" | sed -E 's/^(docs|style|refactor|chore|perf|ci|build)[(:][^)]*[)]:\s*//' | sed -E 's/^(docs|style|refactor|chore|perf|ci|build):\s*//')
                 echo "* $CLEAN_MSG ([$COMMIT_HASH](https://github.com/${{ github.repository }}/commit/$COMMIT_HASH))" >> $OUTPUT_FILE
               done <<< "$OTHERS"
               echo "" >> $OUTPUT_FILE
             fi
-            
-            # 如果没有任何变更
-            if [ -z "$FEATURES" ] && [ -z "$FIXES" ] && [ -z "$OTHERS" ]; then
+          
+            if [ -z "$FEATURES" ] && [ -z "$FIXES" ] && [ -z "$TESTS" ] && [ -z "$OPTIMIZES" ] && [ -z "$OTHERS" ]; then
               echo "No new changes since last release." >> $OUTPUT_FILE
             fi
           }
           
-          # 生成 changelog - 正式发布版本
           CHANGELOG_FILE="/tmp/changelog.md"
           generate_changelog "$NEW_VERSION" "$LATEST_TAG" "$CHANGELOG_FILE" "true"
+          
+          echo "📝 Adding contributors section..."
+          CONTRIBUTORS=$(git log ${LATEST_TAG}..HEAD --format='%an' | sort -u | grep -v 'github-actions' | sed 's/^/* /')
+          
+          if [ ! -z "$CONTRIBUTORS" ]; then
+            echo "" >> "$CHANGELOG_FILE"
+            echo "### 🙏 Contributors" >> "$CHANGELOG_FILE"
+            echo "" >> "$CHANGELOG_FILE"
+            echo "We'd like to thank the following contributors for this release:" >> "$CHANGELOG_FILE"
+            echo "" >> "$CHANGELOG_FILE"
+            echo "$CONTRIBUTORS" >> "$CHANGELOG_FILE"
+            echo "" >> "$CHANGELOG_FILE"
+            echo "Your contributions are greatly appreciated!" >> "$CHANGELOG_FILE"
+          fi
           
           echo "changelog_file=$CHANGELOG_FILE" >> $GITHUB_OUTPUT
 
@@ -418,8 +436,6 @@ jobs:
           
           echo "🚀 Creating release: $NEW_VERSION on branch: $BRANCH"
           
-          # 删除当前草稿版本（如果存在）
-          # 计算当前应该存在的草稿版本
           LATEST_TAG="${{ steps.version_calc.outputs.latest_tag }}"
           VERSION=${LATEST_TAG#v}
           IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
@@ -432,26 +448,21 @@ jobs:
             git push --delete origin $CURRENT_DRAFT_TAG || true
           fi
           
-          # 创建 tag
           git tag $NEW_VERSION HEAD
           git push origin $NEW_VERSION
           
-          # 创建正式 release
           if [ "$BRANCH" = "2.3" ]; then
-            # 2.3 分支 - 稳定版本
             gh release create $NEW_VERSION \
               --title "$NEW_VERSION" \
               --notes-file "$CHANGELOG_FILE" \
               --target "$BRANCH"
           elif [ "$BRANCH" = "2.4" ]; then
-            # 2.4 分支 - 预发布版本
             gh release create $NEW_VERSION \
               --title "$NEW_VERSION (Pre-release)" \
               --notes-file "$CHANGELOG_FILE" \
               --prerelease \
               --target "$BRANCH"
           else
-            # main 分支 - 草稿版本
             gh release create $NEW_VERSION \
               --title "$NEW_VERSION (Draft)" \
               --notes-file "$CHANGELOG_FILE" \
@@ -469,17 +480,10 @@ jobs:
           VERSION_NUMBER=${NEW_VERSION#v}
           
           echo "📝 Updating version files and CHANGELOG.md"
-          
-          # 更新 version.txt
           echo "$VERSION_NUMBER" > version.txt
-          
-          # 更新 manifest
           echo "{\".\": \"$VERSION_NUMBER\"}" > .release-please-manifest.json
           
-          # 更新 CHANGELOG.md - 移除草稿条目并添加正式版本
           CHANGELOG_FILE="${{ steps.changelog.outputs.changelog_file }}"
-          
-          # 移除现有的草稿条目
           DRAFT_VERSION_MINOR=$(($(echo $LATEST_TAG | sed 's/v[0-9]*\.\([0-9]*\)\.[0-9]*/\1/') + 1))
           DRAFT_VERSION="v$(echo $LATEST_TAG | sed 's/v\([0-9]*\)\.[0-9]*\.[0-9]*/\1/').$DRAFT_VERSION_MINOR.0"
           
@@ -489,16 +493,14 @@ jobs:
             sed -i.bak "/^## \[$DRAFT_VERSION\]/d" CHANGELOG.md
           fi
           
-          # 添加正式版本条目
           {
-            head -2 CHANGELOG.md  # 保留标题
+            head -2 CHANGELOG.md
             echo ""
-            cat $CHANGELOG_FILE   # 添加新的正式版本
+            cat $CHANGELOG_FILE
             echo ""
-            tail -n +3 CHANGELOG.md  # 保留其余内容
+            tail -n +3 CHANGELOG.md
           } > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
           
-          # 提交所有更改
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add version.txt .release-please-manifest.json CHANGELOG.md
