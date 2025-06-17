@@ -22,7 +22,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Step 2: Set up Node.js environment (updated version)
+      # Step 2: Set up Node.js environment
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
@@ -35,8 +35,13 @@ jobs:
       # Step 4: Create release PR with changelog
       - name: Create Release PR
         run: |
-          release-please release-pr --token ${{ secrets.GITHUB_TOKEN }} --branch $GITHUB_REF_NAME --repo-url https://github.com/${{ github.repository }}
-          
+          release-please release-pr \
+            --token ${{ secrets.GITHUB_TOKEN }} \
+            --release-type node \
+            --config-file release-please-config.json \
+            --branch ${{ github.ref_name }} \
+            --repo-url https://github.com/${{ github.repository }}
+
       # Step 5: Commit and push the updated CHANGELOG.md (if necessary)
       - name: Commit and push changelog to repository
         run: |
