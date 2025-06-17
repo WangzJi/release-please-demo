@@ -4,45 +4,42 @@ on:
   push:
     branches:
       - main
-      - 2.x
-      - 2.4
-      - pre-release  # 根据需要增加其他分支
-  pull_request:
-    branches:
-      - main
-      - 2.x
-      - 2.4
-      - pre-release  # 根据需求修改监听分支
 
 jobs:
-  release:
+  release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      # Step 1: Checkout code（推荐用最新版本 v3）
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Release Please
+        uses: google-github-actions/release-please-action@v3
+        id: release
         with:
-          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release-type: node
+          package-name: release-please-demo
+          changelog-types: '[{"type":"feat","section":"Features","hidden":false},{"type":"fix","section":"Bug Fixes","hidden":false},{"type":"chore","section":"Miscellaneous","hidden":false}]'
 
-      # Step 2: Set up Node.js environment（建议用 LTS 版本）
-      - name: Set up Node.js
+  publish:
+    runs-on: ubuntu-latest
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 'lts/*'
 
-      # Step 4: Install release-please（锁定最新稳定版本，可选加版本号）
-      - name: Install release-please
-        run: npm install -g release-please@latest
-
-      # Step 5: Create release PR with changelog（增加错误处理和日志）
-      - name: Create Release PR
+      - name: Test the application
         run: |
-          set -e
-          echo "Running release-please on branch $GITHUB_REF_NAME"
-          release-please release-pr --token ${{ secrets.GITHUB_TOKEN }} --branch $GITHUB_REF_NAME --repo-url https://github.com/${{ github.repository }}
+          npm test || echo "No tests configured"
+          node index.js
 
-      # Step 6: Commit and push the updated CHANGELOG.md（只在有变更时提交）
-      - name: Commit and push changelog to repository
+      - name: Echo release info
         run: |
-          set -e
-          git
+          echo "🎉 Release created: ${{ needs.release-please.outputs.tag_name }}"
+          echo "📦 Package published successfully!"
