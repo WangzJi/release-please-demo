@@ -24,6 +24,15 @@ public class Application {
         // Demo the calculator functionality
         Calculator calc = new Calculator();
         System.out.println("Demo calculation: 5 + 3 = " + calc.add(5, 3));
+        
+        // Demo the transaction manager
+        TransactionManager tm = new TransactionManager();
+        String txId = tm.begin();
+        System.out.println("Transaction demo: " + txId);
+        tm.commit();
+        
+        // Demo the new validation feature
+        System.out.println("PR validation status: " + validatePRWorkflow());
     }
     
     public String greet(String name) {
@@ -36,6 +45,14 @@ public class Application {
     public String showVersion() {
         String version = getVersion();
         return "Release Please Demo v" + version;
+    }
+    
+    /**
+     * New method to validate PR workflow functionality
+     * @return validation status message
+     */
+    public String validatePRWorkflow() {
+        return "PR title validation and automatic changelog generation are active";
     }
     
     private String getVersion() {
